@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Explorador Tienda Amigos de Santa Cruz</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-background: #f9f9f9;
+      --secondary-background: #ffffff;
+      --primary-text: #2c3e50;
+      --secondary-text: #444;
+      --light-text: #777;
+      --border-color: #f1f1f1;
+      --shadow: 0 4px 12px rgba(0,0,0,0.08);
+      --transition: all 0.3s ease-in-out;
+      --padding: 25px;
+      --border-radius: 8px;
+      --primary-color: #8a2be2;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: var(--primary-background);
+      color: var(--primary-text);
+      line-height: 1.6;
+      padding: 20px;
+    }
+    
+    h1 {
+      text-align: center;
+      font-size: 32px;
+      margin-bottom: 30px;
+      color: var(--primary-text);
+      font-weight: 600;
+    }
+    
+    .container {
+      display: flex;
+      max-width: 1600px;
+      margin: 0 auto;
+      min-height: 80vh;
+      position: relative;
+    }
+    
+    #chart-container {
+      flex: 3;
+      height: 100%;
+      position: relative;
+    }
+    
+    #chart {
+      width: 100%;
+      max-width: 900px;
+      height: 900px;
+      margin: 0 auto;
+    }
+    
+    #info-panel {
+      flex: 1;
+      min-width: 300px;
+      background-color: var(--secondary-background);
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow);
+      padding: var(--padding);
+      margin-left: 20px;
+      height: fit-content;
+      position: sticky;
+      top: 20px;
+      transition: var(--transition);
+    }
+    
+    .info-hidden {
+      opacity: 0;
+      transform: translateX(20px);
+      pointer-events: none;
+    }
+    
+    .info-visible {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    
+    .info-panel-header {
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+    }
+    
+    #info-panel-color {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      margin-right: 12px;
+      vertical-align: middle;
+      border: 1px solid rgba(0,0,0,0.1);
+    }
+    
+    #info-panel h2 {
+      margin: 0;
+      padding-bottom: 15px;
+      border-bottom: 2px solid var(--border-color);
+      color: var(--primary-text);
+      font-size: 24px;
+      font-weight: 600;
+    }
+    
+    #info-panel h3 {
+      margin: 20px 0 10px 0;
+      font-size: 16px;
+      color: var(--primary-text);
+      font-weight: 600;
+    }
+    
+    #info-panel p {
+      margin: 10px 0;
+      line-height: 1.6;
+      color: var(--secondary-text);
+    }
+    
+    .path-indicator {
+      font-size: 14px;
+      color: var(--light-text);
+      margin-bottom: 20px;
+      font-style: italic;
+    }
+    
+    .info-section {
+      margin-bottom: 20px;
+    }
+    
+    .instructions {
+      text-align: center;
+      margin: 20px auto;
+      max-width: 800px;
+      font-size: 16px;
+      color: var(--light-text);
+      line-height: 1.6;
+    }
+    
+    .tooltip {
+      position: absolute;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      border-radius: 4px;
+      pointer-events: none;
+      font-size: 14px;
+      z-index: 1000;
+      font-family: 'Poppins', sans-serif;
+      max-width: 300px;
+    }
+    
+    .slice text {
+      font-family: 'Poppins', sans-serif;
+      font-weight: 500;
+      pointer-events: none;
+    }
+
+    .center-logo {
+      cursor: pointer;
+    }
+
+    .slice-label {
+      text-shadow: 0px 0px 3px rgba(0, 0, 0, 0.4);
+    }
+
+    .outer-labels {
+      font-family: 'Poppins', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      pointer-events: none;
+    }
+
+    .label-line {
+      stroke: #333;
+      stroke-width: 0.7px;
+      fill: none;
+    }
+
+    @media (max-width: 1100px) {
+      .container {
+        flex-direction: column;
+      }
+      
+      #chart {
+        height: 700px;
+      }
+      
+      #info-panel {
+        margin-left: 0;
+        margin-top: 20px;
+        position: static;
+        width: auto;
+      }
+    }
+
+    .footer {
+      text-align: center;
+      padding: 20px;
+      margin-top: 40px;
+      color: var(--light-text);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tienda Amigos de Santa Cruz</h1>
+  
+  <p class="instructions">
+   Haz clic en cualquier segmento del diagrama para explorar detalles sobre ese componente de la estructura organizacional.
+   Pasa el cursor sobre los elementos para ver sus nombres y su posición en la estructura.
+  </p>
+  
+  <div class="container">
+    <div id="chart-container">
+      <div id="chart"></div>
+    </div>
+    
+    <div id="info-panel" class="info-hidden">
+      <div class="info-panel-header">
+        <span id="info-panel-color"></span>
+        <h2 id="info-panel-title">Selecciona un elemento</h2>
+      </div>
+      
+      <div class="path-indicator" id="info-panel-path">Haz clic en una sección para ver detalles</div>
+      
+      <div class="info-section">
+        <h3>Objetivo</h3>
+        <p id="info-panel-objective">El objetivo estratégico para esta área de trabajo aparecerá aquí.</p>
+      </div>
+      
+      <div class="info-section">
+        <h3>Indicadores</h3>
+        <p id="info-panel-indicators">Las métricas utilizadas para medir el éxito aparecerán aquí.</p>
+      </div>
+      
+      <div class="info-section">
+        <h3>Medios de Verificación</h3>
+        <p id="info-panel-verification">Los métodos para verificar los resultados de los indicadores aparecerán aquí.</p>
+      </div>
+    </div>
+  </div>
+  
+  <div id="tooltip" class="tooltip" style="display: none;"></div>
+
+  <footer class="footer">
+    © 2025 Tienda Amigos de Santa Cruz - Todos los derechos reservados
+  </footer>
+
+  <script>
+    // Estructura de datos ACTUALIZADA de la Tienda Amigos de Santa Cruz con nombres clave
+    const data = {
+      name: "Tienda Amigos de Santa Cruz",
+      color: "#8a2be2", // Color principal
+      objective: "Consolidar un negocio social con viabilidad económica que promueva el desarrollo integral de artesanas y chefs de Santa Cruz La Laguna",
+      indicators: "Crecimiento en ventas, empleos generados, afiliación al IGSS, estatus legal",
+      verification: "Estados financieros, planillas, registros de afiliación",
+      children: [
+        {
+          name: "OE5 Negocios Sociales",
+          fullName: "OE5 Consolidar dos negocios sociales con viabilidad económica",
+          color: "#8a2be2",
+          objective: "Consolidar dos negocios sociales con viabilidad económica que promuevan el desarrollo integral de artesanas y chefs de Santa Cruz La Laguna",
+          indicators: "Viabilidad económica, impacto social, sostenibilidad",
+          verification: "Informes financieros, estudios de impacto",
+          children: [
+            {
+              name: "R1 Calidad",
+              fullName: "R1: Garantizar la mejora continua de la calidad de productos y servicios",
+              color: "#4E7AC7",
+              objective: "Garantizar la mejora continua de la calidad de productos y servicios",
+              indicators: "Satisfacción del cliente, certificaciones de calidad",
+              verification: "Encuestas, certificados obtenidos",
+              children: [
+                {
+                  name: "SR1.1 Control de Calidad",
+                  fullName: "SR1.1: Garantizar la calidad en servicios y productos de la tienda",
+                  objective: "Garantizar la calidad en servicios y productos de la tienda",
+                  indicators: "Estándares de calidad, feedback de clientes",
+                  verification: "Inspecciones, encuestas de satisfacción",
+                  children: [
+                    {
+                      name: "Control de calidad en productos",
+                      fullName: "Control de calidad en productos",
+                      objective: "Asegurar que todos los productos cumplan con los estándares de calidad establecidos",
+                      indicators: "Tasa de defectos, estándares cumplidos",
+                      verification: "Informes de control de calidad"
+                    },
+                    {
+                      name: "Fortalecimiento de clases para turistas",
+                      fullName: "Fortalecimiento de clases para turistas",
+                      objective: "Mejorar y ampliar la oferta de clases para turistas",
+                      indicators: "Número de participantes, satisfacción, variedad de clases",
+                      verification: "Registros de participación, encuestas post-clase"
+                    }
+                  ]
+                },
+                {
+                  name: "SR1.2 Experiencia Cliente",
+                  fullName: "SR1.2: Mejorar la experiencia del cliente en la tienda física",
+                  objective: "Mejorar la experiencia del cliente en la tienda física",
+                  indicators: "Satisfacción del cliente, tiempo de permanencia, tasa de conversión",
+                  verification: "Encuestas, observación directa, ventas por visita",
+                  children: [
+                    {
+                      name: "Renovación del espacio físico",
+                      fullName: "Renovar el espacio físico de la tienda para hacerlo más atractivo y funcional",
+                      objective: "Renovar el espacio físico de la tienda para hacerlo más atractivo y funcional",
+                      indicators: "Implementación de renovaciones, percepción del cliente",
+                      verification: "Fotografías antes/después, retroalimentación de clientes"
+                    },
+                    {
+                      name: "Evaluación de productos y servicios",
+                      fullName: "Evaluación de productos y servicios por parte de clientes",
+                      objective: "Implementar sistema de evaluación continua por parte de los clientes",
+                      indicators: "Número de evaluaciones, puntuación promedio, áreas de mejora identificadas",
+                      verification: "Formularios de evaluación, análisis de resultados"
+                    }
+                  ]
+                },
+                {
+                  name: "SR1.3 Diversificación",
+                  fullName: "SR1.3: Diversificar y mejorar la oferta de productos para satisfacer la demanda del mercado",
+                  objective: "Diversificar y mejorar la oferta de productos para satisfacer la demanda del mercado",
+                  indicators: "Número de nuevos productos, ventas de nuevos productos, diversificación del catálogo",
+                  verification: "Catálogo de productos, informes de ventas",
+                  children: [
+                    {
+                      name: "Actualización anual del catálogo",
+                      fullName: "Actualizar anualmente el catálogo de productos",
+                      objective: "Actualizar anualmente el catálogo de productos para mantenerlo vigente",
+                      indicators: "Frecuencia de actualización, inclusión de nuevos productos",
+                      verification: "Versiones del catálogo, fechas de actualización"
+                    },
+                    {
+                      name: "Nuevos productos artesanales",
+                      fullName: "Diseñar y lanzar al menos 8 nuevos productos basados en las técnicas y tradiciones artesanales locales",
+                      objective: "Diseñar y lanzar al menos 8 nuevos productos basados en las técnicas y tradiciones artesanales locales",
+                      indicators: "Número de nuevos productos, ventas generadas, aceptación del mercado",
+                      verification: "Registros de desarrollo de productos, estadísticas de ventas"
+                    }
+                  ]
+                },
+                {
+                  name: "SR1.4 Procesos",
+                  fullName: "SR1.4: Optimizar los procesos de gestión y producción artesanal garantizando la calidad, eficiencia y sostenibilidad",
+                  objective: "Optimizar los procesos de gestión y producción artesanal garantizando la calidad, eficiencia y sostenibilidad en las operaciones de la tienda",
+                  indicators: "Eficiencia productiva, reducción de desperdicios, optimización de recursos",
+                  verification: "Auditorías de procesos, registros de producción",
+                  children: [
+                    {
+                      name: "Productos y Estandarización",
+                      fullName: "Productos y Estandarización",
+                      objective: "Establecer estándares claros para todos los productos",
+                      indicators: "Número de productos estandarizados, consistencia en calidad",
+                      verification: "Fichas técnicas de productos, controles de calidad"
+                    },
+                    {
+                      name: "Gestión de Materiales",
+                      fullName: "Gestión de Materiales y Recursos",
+                      objective: "Optimizar el uso y control de materiales y recursos",
+                      indicators: "Inventario de materiales, costos de materiales, eficiencia de uso",
+                      verification: "Registros de inventario, análisis de costos"
+                    },
+                    {
+                      name: "Optimización de producción",
+                      fullName: "Optimizar la organización y eficiencia en el área de producción, fortaleciendo al equipo de trabajo y a las artesanas",
+                      objective: "Optimizar la organización y eficiencia en el área de producción, fortaleciendo al equipo de trabajo y a las artesanas",
+                      indicators: "Tiempos de producción, productividad por artesana, calidad consistente",
+                      verification: "Registros de producción, evaluaciones de desempeño"
+                    },
+                    {
+                      name: "Sistema digital de inventarios",
+                      fullName: "Implementar un sistema digital de registro y control de inventarios",
+                      objective: "Implementar un sistema digital de registro y control de inventarios",
+                      indicators: "Precisión del inventario, tiempo de gestión, reducción de pérdidas",
+                      verification: "Reportes del sistema, auditorías de inventario"
+                    },
+                    {
+                      name: "Relaciones con proveedores",
+                      fullName: "Mejorar relaciones con proveedores",
+                      objective: "Fortalecer y optimizar las relaciones con proveedores",
+                      indicators: "Calidad de materiales, cumplimiento de entregas, condiciones de compra",
+                      verification: "Evaluación de proveedores, registros de compras"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              name: "R2 Estrategia",
+              fullName: "R2: Fortalecer la estrategia empresarial y sostenibilidad",
+              color: "#E6A039",
+              objective: "Fortalecer la estrategia empresarial y sostenibilidad",
+              indicators: "Incremento de ingresos, rentabilidad, sostenibilidad",
+              verification: "Informes financieros, plan estratégico",
+              children: [
+                {
+                  name: "SR2.1 Plan Estratégico",
+                  fullName: "SR2.1: Estrategia de negocio",
+                  objective: "Fortalecer las capacidades estratégicas y operativas del negocio asegurando su crecimiento sostenible y competitivo",
+                  indicators: "Implementación de estrategias, crecimiento empresarial, posicionamiento en el mercado",
+                  verification: "Plan estratégico, indicadores de desempeño, análisis de mercado",
+                  children: [
+                    {
+                      name: "Fortalecimiento estratégico",
+                      fullName: "Fortalecer las capacidades estratégicas y operativas del negocio",
+                      objective: "Fortalecer las capacidades estratégicas y operativas del negocio asegurando su crecimiento sostenible y competitivo",
+                      indicators: "Cumplimiento de objetivos estratégicos, adaptabilidad del negocio",
+                      verification: "Evaluación de plan estratégico, reuniones de seguimiento"
+                    }
+                  ]
+                },
+                {
+                  name: "SR2.2 Posicionamiento",
+                  fullName: "SR2.2: Posicionar la Tienda Manos Cruceñas como un referente en el mercado artesanal",
+                  objective: "Posicionar la Tienda Manos Cruceñas como un referente en el mercado artesanal nacional e internacional",
+                  indicators: "Reconocimiento de marca, presencia en medios, posicionamiento en búsquedas",
+                  verification: "Análisis de presencia digital, encuestas de reconocimiento",
+                  children: [
+                    {
+                      name: "Presencia digital",
+                      fullName: "Incrementar la presencia en redes sociales y Google Business",
+                      objective: "Incrementar la presencia en redes sociales y Google Business",
+                      indicators: "Seguidores en redes sociales, interacciones, reseñas en Google Business",
+                      verification: "Estadísticas de redes sociales, análisis de Google Business"
+                    },
+                    {
+                      name: "Contenido para redes sociales",
+                      fullName: "Diseñar el contenido de las publicaciones en redes sociales",
+                      objective: "Diseñar contenido estratégico para las publicaciones en redes sociales",
+                      indicators: "Engagement, alcance, conversiones desde redes sociales",
+                      verification: "Métricas de contenido, análisis de rendimiento de publicaciones"
+                    }
+                  ]
+                },
+                {
+                  name: "SR2.3 Sostenibilidad",
+                  fullName: "SR2.3: Garantizar la sostenibilidad financiera y la independencia gradual de la tienda",
+                  objective: "Garantizar la sostenibilidad financiera y la independencia gradual de la tienda",
+                  indicators: "Autosostenibilidad financiera, reducción de dependencia externa",
+                  verification: "Estados financieros, análisis de dependencia financiera",
+                  children: [
+                    {
+                      name: "Incremento de ingresos",
+                      fullName: "Incrementar los ingresos anuales en un 5% respecto al año anterior",
+                      objective: "Incrementar los ingresos anuales en un 5% respecto al año anterior",
+                      indicators: "Porcentaje de incremento en ventas, nuevas fuentes de ingresos",
+                      verification: "Comparativa de ingresos anuales, informes financieros"
+                    },
+                    {
+                      name: "Establecimiento de precios",
+                      fullName: "Establecimiento de precios",
+                      objective: "Implementar una estrategia de precios competitiva y rentable",
+                      indicators: "Margen de ganancia, aceptación del mercado, competitividad",
+                      verification: "Análisis de precios, informes de ventas por producto"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              name: "R3 Operaciones",
+              fullName: "R3: Optimizar la eficiencia operativa",
+              color: "#4CAF50",
+              objective: "Optimizar la eficiencia operativa",
+              indicators: "Reducción de costos operativos, eficiencia de procesos",
+              verification: "Análisis de procesos, métricas operativas",
+              children: [
+                {
+                  name: "SR3.1 Procesos Operativos",
+                  fullName: "SR3.1: Optimizar los procesos operativos y administrativos",
+                  objective: "Optimizar los procesos operativos y administrativos",
+                  indicators: "Tiempo de procesos, eficiencia administrativa, reducción de errores",
+                  verification: "Mapeo de procesos, indicadores de rendimiento",
+                  children: [
+                    {
+                      name: "Sistema integrado",
+                      fullName: "Implementar un sistema integrado que sincronice inventarios, ventas y facturación electrónica",
+                      objective: "Implementar un sistema integrado que sincronice inventarios, ventas y facturación electrónica",
+                      indicators: "Nivel de integración, reducción de errores, tiempo de procesamiento",
+                      verification: "Reportes del sistema, auditorías de procesos"
+                    },
+                    {
+                      name: "Verificación legal",
+                      fullName: "Verificación legal",
+                      objective: "Asegurar el cumplimiento de requisitos legales y normativos",
+                      indicators: "Cumplimiento normativo, documentación actualizada",
+                      verification: "Auditorías legales, permisos y licencias"
+                    }
+                  ]
+                },
+                {
+                  name: "SR3.2 Eco-Prácticas",
+                  fullName: "SR3.2: Reducir el desperdicio de materiales y promover prácticas sostenibles",
+                  objective: "Reducir el desperdicio de materiales y promover prácticas sostenibles en el proceso de producción y venta de artesanías",
+                  indicators: "Reducción de desperdicios, prácticas sostenibles implementadas",
+                  verification: "Medición de desperdicios, certificaciones ambientales",
+                  children: [
+                    {
+                      name: "Reducción de desperdicio",
+                      fullName: "Reducción y aprovechamiento de materiales",
+                      objective: "Implementar estrategias para reducir y aprovechar al máximo los materiales",
+                      indicators: "Porcentaje de reducción de desperdicios, reutilización de materiales",
+                      verification: "Registros de uso de materiales, inventario de desperdicios"
+                    },
+                    {
+                      name: "Empaques sostenibles",
+                      fullName: "Uso de empaques sostenibles",
+                      objective: "Transicionar a empaques ecoamigables y sostenibles",
+                      indicators: "Porcentaje de empaques sostenibles, reducción de plásticos",
+                      verification: "Inventario de empaques, certificaciones de sostenibilidad"
+                    },
+                    {
+                      name: "Gestión de residuos",
+                      fullName: "Gestión de residuos y reciclaje",
+                      objective: "Implementar un sistema efectivo de gestión de residuos y reciclaje",
+                      indicators: "Volumen de reciclaje, reducción de residuos a vertederos",
+                      verification: "Registros de reciclaje, auditorías ambientales"
+                    }
+                  ]
+                },
+                {
+                  name: "SR3.3 Mantenimiento",
+                  fullName: "SR3.3: Garantizar el mantenimiento preventivo y correctivo",
+                  objective: "Garantizar el mantenimiento preventivo y correctivo del espacio y equipo de trabajo en el edificio de Amigos de Santa Cruz",
+                  indicators: "Frecuencia de mantenimiento, tiempo de resolución de incidencias",
+                  verification: "Registros de mantenimiento, informes de incidencias",
+                  children: [
+                    {
+                      name: "Mantenimiento preventivo",
+                      fullName: "Implementar un plan de mantenimiento preventivo trimestral",
+                      objective: "Implementar un plan de mantenimiento preventivo trimestral",
+                      indicators: "Cumplimiento del plan, reducción de fallos",
+                      verification: "Calendario de mantenimiento, registros de actividades"
+                    },
+                    {
+                      name: "Mantenimiento correctivo",
+                      fullName: "Resolver incidencias de mantenimiento correctivo en un plazo máximo de 7 días hábiles",
+                      objective: "Resolver incidencias de mantenimiento correctivo en un plazo máximo de 7 días hábiles",
+                      indicators: "Tiempo de respuesta, efectividad de soluciones",
+                      verification: "Registros de incidencias, encuestas de satisfacción"
+                    }
+                  ]
+                },
+                {
+                  name: "SR3.4 Indicadores",
+                  fullName: "SR3.4: Establecer un sistema de indicadores clave",
+                  objective: "Establecer un sistema de indicadores clave para monitorear operaciones y mejorar la toma de decisiones basada en datos",
+                  indicators: "Implementación de indicadores, uso en toma de decisiones",
+                  verification: "Dashboard de indicadores, registros de decisiones basadas en datos",
+                  children: [
+                    {
+                      name: "Sistema de indicadores",
+                      fullName: "Establecer un sistema de indicadores clave para la toma de decisiones basado en datos",
+                      objective: "Establecer un sistema de indicadores clave para la toma de decisiones basado en datos",
+                      indicators: "Número de indicadores implementados, frecuencia de uso en decisiones",
+                      verification: "Informes periódicos, actas de reuniones estratégicas"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              name: "R4 Talento",
+              fullName: "R4: Desarrollar un equipo competente y comprometido",
+              color: "#E91E63",
+              objective: "Desarrollar un equipo competente y comprometido",
+              indicators: "Desarrollo de habilidades, retención de personal, satisfacción laboral",
+              verification: "Evaluaciones de desempeño, encuestas de satisfacción",
+              children: [
+                {
+                  name: "SR4.1 Gestión RRHH",
+                  fullName: "SR4.1: Fortalecer la gestión del recurso humano",
+                  objective: "Fortalecer la gestión del recurso humano para garantizar un equipo motivado y capacitado",
+                  indicators: "Retención de personal, satisfacción laboral, desarrollo de competencias",
+                  verification: "Encuestas de clima laboral, evaluaciones de desempeño",
+                  children: [
+                    {
+                      name: "Retención de personal",
+                      fullName: "Incrementar la retención del personal en un 10% en comparación con 2024",
+                      objective: "Incrementar la retención del personal en un 10% en comparación con 2024",
+                      indicators: "Tasa de rotación, tiempo promedio de permanencia",
+                      verification: "Registros de personal, entrevistas de salida"
+                    },
+                    {
+                      name: "Programa de capacitaciones",
+                      fullName: "Implementar un programa de capacitaciones trimestrales",
+                      objective: "Implementar un programa de capacitaciones trimestrales",
+                      indicators: "Número de capacitaciones, asistencia, mejora de competencias",
+                      verification: "Registros de capacitación, evaluaciones pre/post capacitación"
+                    },
+                    {
+                      name: "Clima laboral",
+                      fullName: "Mejorar el clima laboral e integración con artesanas",
+                      objective: "Mejorar el clima laboral e integración con artesanas",
+                      indicators: "Satisfacción laboral, cohesión de equipo, colaboración",
+                      verification: "Encuestas de clima, actividades de integración"
+                    },
+                    {
+                      name: "Control de clases y talleres",
+                      fullName: "Garantizar el control eficiente de las clases y talleres dirigidos a artesanas",
+                      objective: "Garantizar el control eficiente de las clases y talleres dirigidos a artesanas para promover su desarrollo técnico y profesional",
+                      indicators: "Asistencia, aprendizaje, aplicación de conocimientos",
+                      verification: "Registros de participación, evaluaciones de talleres"
+                    },
+                    {
+                      name: "Fortalecimiento a colaboradores",
+                      fullName: "Fortalecimiento a colaboradores",
+                      objective: "Desarrollar habilidades y competencias específicas en el equipo",
+                      indicators: "Desarrollo de competencias, desempeño, satisfacción",
+                      verification: "Evaluaciones de competencias, planes de desarrollo individual"
+                    },
+                    {
+                      name: "Capacitación en servicio al cliente",
+                      fullName: "Mejorar el servicio al cliente a través de capacitaciones regulares al personal",
+                      objective: "Mejorar el servicio al cliente a través de capacitaciones regulares al personal",
+                      indicators: "Satisfacción del cliente, habilidades de servicio, resolución de problemas",
+                      verification: "Evaluaciones de desempeño, retroalimentación de clientes"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+                    
+    
+    // Set dimensions and radius for the larger chart
+    const width = 900;
+    const height = 900;
+    const radius = Math.min(width, height) / 2;
+    
+    // Create SVG
+    const svg = d3.select("#chart")
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height)
+      .append("g")
+      .attr("transform", `translate(${width / 2},${height / 2})`);
+    
+    // Create partition function for layout
+    const partition = d3.partition()
+      .size([2 * Math.PI, radius]);
+    
+    // Function to generate arcs
+    const arc = d3.arc()
+      .startAngle(d => d.x0)
+      .endAngle(d => d.x1)
+      .innerRadius(d => d.y0)
+      .outerRadius(d => d.y1);
+    
+    // Function to generate colors with consistent brightness
+    const getColor = (d) => {
+      if (d.depth === 0) return "white";
+      
+      // If it has a specific color, use it
+      if (d.data.color) return d.data.color;
+      
+      // Look for color in the closest ancestor
+      let ancestor = d.parent;
+      while (ancestor) {
+        if (ancestor.data.color) {
+          // For better visual hierarchy, adjust color based on depth
+          const baseColor = d3.rgb(ancestor.data.color);
+          const depthDiff = d.depth - ancestor.depth;
+          
+          if (depthDiff > 0) {
+            // Make color slightly lighter for deeper levels (consistent brightness steps)
+            return baseColor.brighter(depthDiff * 0.25).toString();
+          }
+          return ancestor.data.color;
+        }
+        ancestor = ancestor.parent;
+      }
+      
+      // Default color
+      return "#cccccc";
+    };
+    
+    // Function to update the chart
+    function updateChart() {
+      // Create hierarchy
+      const root = d3.hierarchy(data)
+        .sum(d => d.children && d.children.length > 0 ? 0 : 1);
+      
+      // Calculate layout
+      partition(root);
+      
+      // Create path elements
+      const path = svg.selectAll("path")
+        .data(root.descendants().slice(1)) // Ignore root
+        .enter()
+        .append("path")
+        .attr("d", arc)
+        .attr("fill", d => getColor(d))
+        .attr("stroke", "white")
+        .attr("stroke-width", 1.5)
+        .attr("class", "slice")
+        .style("cursor", "pointer")
+        .style("transition", "all 0.3s ease")
+        .on("click", function(event, d) {
+          showInfoPanel(d);
+          event.stopPropagation();
+        })
+        .on("mouseover", function(event, d) {
+          // Show tooltip
+          const fullPath = getPathTo(d).slice(1).join(" > ");
+          
+          tooltip
+            .style("display", "block")
+            .html(`<strong>${d.data.fullName || d.data.name}</strong><br>${fullPath}`);
+          
+          // Position tooltip
+          const [x, y] = d3.pointer(event, document.body);
+          tooltip
+            .style("left", `${x + 15}px`)
+            .style("top", `${y + 15}px`);
+          
+          // Highlight the sector
+          d3.select(this)
+            .transition()
+            .duration(200)
+            .attr("stroke-width", 3)
+            .attr("stroke", "#333");
+        })
+        .on("mousemove", function(event) {
+          // Move tooltip with cursor
+          const [x, y] = d3.pointer(event, document.body);
+          tooltip
+            .style("left", `${x + 15}px`)
+            .style("top", `${y + 15}px`);
+        })
+        .on("mouseout", function() {
+          // Hide tooltip
+          tooltip.style("display", "none");
+          
+          // Restore normal style
+          d3.select(this)
+            .transition()
+            .duration(200)
+            .attr("stroke-width", 1.5)
+            .attr("stroke", "white");
+        });
+      
+      // Add labels
+      const text = svg.selectAll("text.slice-label")
+        .data(root.descendants().slice(1))
+        .enter()
+        .append("text")
+        .attr("class", "slice-label")
+        .attr("transform", function(d) {
+          // Position text in the center of each arc
+          const x = (d.x0 + d.x1) / 2 * 180 / Math.PI;
+          const y = (d.y0 + d.y1) / 2;
+          const rotation = x - 90;
+          const translate = y;
+          return `rotate(${rotation}) translate(${translate},0) rotate(${-rotation})`;
+        })
+        .attr("dy", "0.35em")
+        .attr("text-anchor", "middle")
+        .style("font-size", d => {
+          // Dynamically size the text based on the arc width
+          const arcWidth = (d.x1 - d.x0) * radius;
+          // Scale font size based on available space
+          return Math.min(14, Math.max(9, arcWidth / 10)) + "px";
+        })
+        .style("fill", d => {
+          // Use white text for darker colors, black for lighter colors
+          const color = d3.rgb(getColor(d));
+          const luminance = 0.299 * color.r + 0.587 * color.g + 0.114 * color.b;
+          return luminance > 160 ? "#333" : "#fff";
+        })
+        .style("pointer-events", "none")
+        .style("font-weight", "500")
+        .text(d => {
+          // Determine label based on available space
+          const arcWidth = (d.x1 - d.x0) * radius;
+          
+          // Don't show text if arc is too small
+          if (arcWidth < 20) {
+            return "";
+          }
+          
+          let name = d.data.name;
+          // Shorten text if arc is small but not too small
+          if (arcWidth < 40) {
+            if (name.length > 3) {
+              name = name.substring(0, 3) + ".";
+            }
+          } else if (arcWidth < 80) {
+            if (name.length > 10) {
+              name = name.substring(0, 9) + "...";
+            }
+          }
+          
+          return name;
+        });
+
+    const logoSize = radius * 0.5; // Ajusta este valor para cambiar el tamaño del logo
+svg.append("image")
+  .attr("class", "center-logo")
+  .attr("xlink:href", "tienda.jpeg")
+  .attr("x", -logoSize / 2)
+  .attr("y", -logoSize / 2)
+  .attr("width", logoSize)
+  .attr("height", logoSize)
+  .attr("clip-path", "circle(" + (logoSize/2) + "px at " + (logoSize/2) + "px " + (logoSize/2) + "px)")
+  .style("cursor", "pointer")
+  .on("click", function() {
+    hideInfoPanel();
+  })
+  .append("title")
+  .text("Volver al inicio");
+    }
+    // Function to get path to node
+    function getPathTo(node) {
+      const path = [];
+      let current = node;
+      
+      while (current) {
+        path.unshift(current.data.name);
+        current = current.parent;
+      }
+      
+      return path;
+    }
+    
+    // Info panel functions
+    function showInfoPanel(node) {
+      if (!node || node.depth === 0) {
+        hideInfoPanel();
+        return;
+      }
+      
+      const data = node.data;
+      
+      // Set title and color
+      document.getElementById("info-panel-title").textContent = data.fullName || data.name;
+      const nodeColor = getColor(node);
+      document.getElementById("info-panel-color").style.backgroundColor = nodeColor;
+      
+      // Set path
+      const path = getPathTo(node).slice(1).join(" > ");
+      document.getElementById("info-panel-path").textContent = `Ruta: ${path}`;
+      
+      // Set content
+      document.getElementById("info-panel-objective").textContent = data.objective || "No se ha definido un objetivo para este elemento.";
+      document.getElementById("info-panel-indicators").innerHTML = formatBulletPoints(data.indicators || "No se han especificado indicadores para este elemento.");
+      document.getElementById("info-panel-verification").innerHTML = formatBulletPoints(data.verification || "No se han especificado medios de verificación para este elemento.");
+      
+      // Show panel
+      document.getElementById("info-panel").classList.remove("info-hidden");
+      document.getElementById("info-panel").classList.add("info-visible");
+      
+      // Highlight selected sector
+      d3.selectAll("path")
+        .style("opacity", 0.7)
+        .style("stroke-width", 1.5);
+      
+      d3.selectAll("path")
+        .filter(d => d === node)
+        .style("opacity", 1)
+        .style("stroke-width", 3)
+        .style("stroke", "#333");
+    }
+    
+    // Format bullet points from text
+    function formatBulletPoints(text) {
+      if (!text) return "";
+      
+      // Si contiene comas, convertir en lista de bullets
+      if (text.includes(',')) {
+        return text.split(',')
+          .map(item => item.trim())
+          .filter(item => item.length > 0)
+          .map(item => `• ${item}`)
+          .join('<br>');
+      }
+      
+      // Replace asterisks with proper bullet points
+      return text.replace(/\s*\*\s*/g, '<br>• ').replace(/^\s*• /, '');
+    }
+    
+    function hideInfoPanel() {
+      document.getElementById("info-panel").classList.add("info-hidden");
+      document.getElementById("info-panel").classList.remove("info-visible");
+      
+      // Reset all sectors
+      d3.selectAll("path")
+        .style("opacity", 1)
+        .style("stroke-width", 1.5)
+        .style("stroke", "white");
+    }
+    
+    // Initialize chart
+    updateChart();
+    
+    // Make chart container clickable to reset
+    document.getElementById("chart").addEventListener("click", function(event) {
+      // Only reset if clicking directly on the SVG or chart container, not a path
+      if (event.target.tagName === "svg" || event.target.id === "chart") {
+        hideInfoPanel();
+      }
+    });
+    
+    // Add click listener to SVG element itself
+    document.querySelector("#chart svg").addEventListener("click", function(event) {
+      // Only reset if clicking directly on the SVG background, not a path
+      if (event.target.tagName === "svg") {
+        hideInfoPanel();
+      }
+    });
+    
+    // Función para hacer el gráfico responsive
+    function handleResize() {
+      const chartContainer = document.getElementById("chart-container");
+      const containerWidth = chartContainer.clientWidth;
+      
+      // Ajustar el tamaño basado en el ancho disponible
+      if (containerWidth < 500) {
+        // Para pantallas muy pequeñas
+        d3.select("#chart svg")
+          .attr("width", Math.min(containerWidth, 400))
+          .attr("height", Math.min(containerWidth, 400));
+      } else if (containerWidth < 700) {
+        // Para pantallas medianas
+        d3.select("#chart svg")
+          .attr("width", Math.min(containerWidth, 600))
+          .attr("height", Math.min(containerWidth, 600));
+      } else {
+        // Para pantallas grandes, mantener el tamaño original
+        d3.select("#chart svg")
+          .attr("width", width)
+          .attr("height", height);
+      }
+    }
+    
+    // Manejar el redimensionamiento inicial y en cambios de ventana
+    handleResize();
+    window.addEventListener("resize", handleResize);
+  </script>
+</body>
+</html>
